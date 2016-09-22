@@ -1,12 +1,15 @@
 ﻿using UnityEngine;
+using Assets.scripts;
 using System.Collections;
 using System.Collections.Generic;
 
 public class Player : MonoBehaviour {
 
+    public GameObject waypointMarker;
+
     private NavMeshAgent _agent;
-    private List<Vector3> _waypoints;
-    private Vector3 _currentWaypoint;
+    private List<Waypoint> _waypoints;
+    private Vector3 _currentDestination;
 
 
     public Camera cam;
@@ -15,7 +18,7 @@ public class Player : MonoBehaviour {
 	// Use this for initialization
 	void Start () {
         _agent = GetComponent<NavMeshAgent>();
-        _waypoints = new List<Vector3>();
+        _waypoints = new List<Waypoint>();
     }
 	
 	// Update is called once per frame
@@ -30,14 +33,16 @@ public class Player : MonoBehaviour {
             {
                 //you have reached your destination
                 Debug.Log("Waypoint reached.");
-                int thisIndex = _waypoints.FindIndex(w => IsWayPoint(w, _currentWaypoint));
+                int thisIndex = _waypoints.FindIndex(w => IsPosition(w.Position, _currentDestination));
                 if (thisIndex > -1 && _waypoints.Count - 1 > thisIndex)
                 {
                     //set the next waypoint
-                    _currentWaypoint = _waypoints[thisIndex + 1];
+                    _currentDestination = _waypoints[thisIndex + 1].Position;
+                    //destroy the marker
+                    Destroy(_waypoints[thisIndex].Marker);
                 }
             }
-            _agent.SetDestination(_currentWaypoint);
+            _agent.SetDestination(_currentDestination);
         }
 
         //adding waypoints on click
@@ -46,21 +51,46 @@ public class Player : MonoBehaviour {
             RaycastHit hit;
             Ray ray = cam.ScreenPointToRay(Input.mousePosition);
 
+            //check what we've clicked on
             if (Physics.Raycast(ray, out hit))
             {
-                if (!Input.GetKey(KeyCode.LeftControl))
+
+                NavMeshHit nHit;
+                NavMesh.FindClosestEdge(hit.point, out nHit, NavMesh.AllAreas);
+                
+                //see if destination is reachable
+                NavMeshPath path = new NavMeshPath();
+                if (NavMesh.CalculatePath(transform.position, hit.point, NavMesh.AllAreas, path))
                 {
-                    _waypoints.Clear();
-                    _currentWaypoint = hit.point;
+                    if (!Input.GetKey(KeyCode.LeftControl))
+                    {
+                        //if we're not holding control, we're clearing the current wayponits and setting new destination
+                        ClearWaypoints();
+                        _currentDestination = hit.point;
+                    }
+
+                    //create new marker and add it to the list
+                    GameObject marker = (GameObject)Instantiate(waypointMarker, hit.point, new Quaternion());
+                    _waypoints.Add(new Waypoint(hit.point, marker));
+
+                    Debug.Log("Waypoint added: " + hit.point.x + ":" + hit.point.y + ":" + hit.point.z);
                 }
-                _waypoints.Add(hit.point);
-                Debug.Log("Waypoint added: " + hit.point.x + ":" + hit.point.y + ":" + hit.point.z);
+
             }
         }
     }
 
-    bool IsWayPoint(Vector3 waypoint1, Vector3 waypoint2)
+    bool IsPosition(Vector3 waypoint1, Vector3 waypoint2)
     {
         return (waypoint1.x == waypoint2.x && waypoint1.y == waypoint2.y && waypoint1.z == waypoint2.z);
+    }
+
+    void ClearWaypoints()
+    {
+        for (int i = 0; i < _waypoints.Count; i++)
+        {
+            Destroy(_waypoints[i].Marker);
+        }
+        _waypoints.Clear();
     }
 }
