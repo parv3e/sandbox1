@@ -8,8 +8,11 @@ public class Player : MonoBehaviour {
     public GameObject waypointMarker;
 
     private NavMeshAgent _agent;
+    private Animator _animator;
     private List<Waypoint> _waypoints;
     private Vector3 _currentDestination;
+    private Vector2 _velocity;
+    private Vector2 _smoothDeltaPosition;
 
 
     public Camera cam;
@@ -18,7 +21,11 @@ public class Player : MonoBehaviour {
 	// Use this for initialization
 	void Start () {
         _agent = GetComponent<NavMeshAgent>();
+        _animator = GetComponent<Animator>() ;
         _waypoints = new List<Waypoint>();
+
+
+        _agent.updatePosition = false;
     }
 	
 	// Update is called once per frame
@@ -40,7 +47,38 @@ public class Player : MonoBehaviour {
                     _currentDestination = _waypoints[thisIndex + 1].Position;
                     //destroy the marker
                     Destroy(_waypoints[thisIndex].Marker);
+
+                } else {
+                    _animator.SetBool("move", false);
                 }
+            } else
+            {
+                Vector3 worldDeltaPosition = _agent.nextPosition - transform.position;
+
+                // Map 'worldDeltaPosition' to local space
+                float dx = Vector3.Dot(transform.right, worldDeltaPosition);
+                float dy = Vector3.Dot(transform.forward, worldDeltaPosition);
+                Vector2 deltaPosition = new Vector2(dx, dy);
+
+                // Low-pass filter the deltaMove
+                float smooth = Mathf.Min(1.0f, Time.deltaTime / 0.15f);
+                _smoothDeltaPosition = Vector2.Lerp(_smoothDeltaPosition, deltaPosition, smooth);
+
+                // Update velocity if time advances
+                if (Time.deltaTime > 1e-5f)
+                    _velocity = _smoothDeltaPosition / Time.deltaTime;
+
+                //bool shouldMove = _velocity.magnitude > 0.5f && _agent.remainingDistance > _agent.radius;
+
+                // Update animation parameters
+                _animator.SetBool("move", true);
+                _animator.SetFloat("velx", _velocity.x);
+                _animator.SetFloat("vely", _velocity.y);
+
+                //GetComponent<LookAt>().lookAtTargetPosition = agent.steeringTarget + transform.forward;
+
+
+
             }
             _agent.SetDestination(_currentDestination);
         }
@@ -78,6 +116,12 @@ public class Player : MonoBehaviour {
 
             }
         }
+    }
+
+    void OnAnimatorMove()
+    {
+        // Update position to agent position
+        transform.position = _agent.nextPosition;
     }
 
     bool IsPosition(Vector3 waypoint1, Vector3 waypoint2)
