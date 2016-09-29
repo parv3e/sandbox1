@@ -3,9 +3,7 @@ using Assets.scripts;
 using System.Collections;
 using System.Collections.Generic;
 
-public class Player : MonoBehaviour {
-
-    public GameObject waypointMarker;
+public class PlayerController : MonoBehaviour {
 
     private NavMeshAgent _agent;
     private Animator _animator;
@@ -13,25 +11,21 @@ public class Player : MonoBehaviour {
     private Vector3 _currentDestination;
     private Vector2 _velocity;
     private Vector2 _smoothDeltaPosition;
-
-
-    public Camera cam;
-
+    private Camera _cam;
+    private GameObject _markerPrefab;
 
 	// Use this for initialization
 	void Start () {
         _agent = GetComponent<NavMeshAgent>();
         _animator = GetComponent<Animator>() ;
+        _cam = GameObject.FindGameObjectWithTag("MainCamera").GetComponent<Camera>();
         _waypoints = new List<Waypoint>();
-
-
         _agent.updatePosition = false;
+        _markerPrefab = GameObject.Find("GameManager").GetComponent<DynamicAssets>().WaypointMarker;
     }
 	
 	// Update is called once per frame
 	void Update () {
-
-        //Debug.Log("Remaining distance: [" + _agent.remainingDistance + "] Current Waypoint: [" + _currentWaypoint.ToString() + "] Waypoints: [" + _waypoints.Count.ToString() + "]");
 
         //if we've got some waypoints, we need to move!
         if (_waypoints.Count > 0)
@@ -77,8 +71,6 @@ public class Player : MonoBehaviour {
 
                 //GetComponent<LookAt>().lookAtTargetPosition = agent.steeringTarget + transform.forward;
 
-
-
             }
             _agent.SetDestination(_currentDestination);
         }
@@ -87,7 +79,7 @@ public class Player : MonoBehaviour {
         if (Input.GetMouseButtonDown(0))
         {
             RaycastHit hit;
-            Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+            Ray ray = _cam.ScreenPointToRay(Input.mousePosition);
 
             //check what we've clicked on
             if (Physics.Raycast(ray, out hit))
@@ -108,7 +100,7 @@ public class Player : MonoBehaviour {
                     }
 
                     //create new marker and add it to the list
-                    GameObject marker = (GameObject)Instantiate(waypointMarker, hit.point, new Quaternion());
+                    GameObject marker = (GameObject)Instantiate(_markerPrefab, hit.point, new Quaternion());
                     _waypoints.Add(new Waypoint(hit.point, marker));
 
                     Debug.Log("Waypoint added: " + hit.point.x + ":" + hit.point.y + ":" + hit.point.z);
